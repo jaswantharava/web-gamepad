@@ -28,7 +28,6 @@
             transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.05s ease;
         }
         
-        /* Ghost Key Action Visual Effect */
         .pad-btn:active, .pad-btn.active {
             transform: scale(0.92); 
             box-shadow: 0 0 15px rgba(6, 182, 212, 0.6), inset 0 2px 4px rgba(0,0,0,0.8);
@@ -130,15 +129,14 @@
         <!-- 2. WEB GAMES TAB -->
         <div id="view-webgames" class="w-full h-full hidden flex-row justify-between items-center px-4 py-2 relative gap-4">
             
-            <div id="wasd-pad" class="relative w-32 h-32 flex items-center justify-center shrink-0 touch-none">
-                <div class="absolute w-32 h-10 bg-gray-800/90 rounded-xl border border-white/10 pointer-events-none"></div>
-                <div class="absolute h-32 w-10 bg-gray-800/90 rounded-xl border border-white/10 pointer-events-none"></div>
-                
-                <div id="web-btn-W" class="pad-btn absolute top-0 w-10 h-10 rounded-t-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">W</div>
-                <div id="web-btn-S" class="pad-btn absolute bottom-0 w-10 h-10 rounded-b-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">S</div>
-                <div id="web-btn-A" class="pad-btn absolute left-0 w-10 h-10 rounded-l-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">A</div>
-                <div id="web-btn-D" class="pad-btn absolute right-0 w-10 h-10 rounded-r-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">D</div>
-                <div class="absolute w-8 h-8 bg-gray-900 rounded-full z-10 pointer-events-none"></div>
+            <!-- WASD JOYSTICK (Replaces old WASD buttons) -->
+            <div class="flex flex-col items-center shrink-0 w-32">
+                <div id="web-stick-container" class="w-24 h-24 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center touch-none">
+                    <div id="web-stick-thumb" class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-cyan-400/50 absolute flex items-center justify-center pointer-events-none transition-transform duration-75">
+                        <div class="w-3 h-3 rounded-full bg-cyan-400/80"></div>
+                    </div>
+                </div>
+                <span class="text-[10px] font-bold text-gray-400 mt-2 tracking-wider">WASD STICK</span>
             </div>
 
             <div id="trackpad" class="flex-1 h-full max-h-36 bg-black/40 border border-white/10 rounded-2xl relative flex flex-col items-center justify-center overflow-hidden shadow-inner touch-none">
@@ -174,11 +172,9 @@
     <script>
         lucide.createIcons();
 
-        // NETWORK VARIABLES DETACHED FROM STATE TO FIX JSON BUG
         let ws = null;
         let isConnected = false;
 
-        // PURE DATA STATE (Safe for JSON.stringify)
         const state = {
             activeTab: 'gamepad',
             buttons: { A: false, B: false, X: false, Y: false, L1: false, R1: false, START: false, SELECT: false, DPAD_UP: false, DPAD_DOWN: false, DPAD_LEFT: false, DPAD_RIGHT: false },
@@ -244,30 +240,60 @@
         setupStick('stick-left-container', 'stick-left-thumb', 'LX', 'LY');
         setupStick('stick-right-container', 'stick-right-thumb', 'RX', 'RY');
 
-        // ================= WEB GAMES: WASD GHOST / SLIDE ACTION =================
-        const wasdPad = document.getElementById('wasd-pad');
-        let wasdTouchId = null;
-        function updateWASD(clientX, clientY) {
-            const rect = wasdPad.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            const dx = clientX - cx, dy = clientY - cy;
-            const deadzone = 12;
-            
-            const w = dy < -deadzone, s = dy > deadzone, a = dx < -deadzone, d = dx > deadzone;
-            let changed = false;
+        // ================= WEB GAMES: WASD JOYSTICK =================
+        const webStick = document.getElementById('web-stick-container');
+        const webThumb = document.getElementById('web-stick-thumb');
+        let webStickId = null;
 
-            if (state.web.buttons.W !== w) { state.web.buttons.W = w; document.getElementById('web-btn-W').classList.toggle('active', w); changed = true; }
-            if (state.web.buttons.S !== s) { state.web.buttons.S = s; document.getElementById('web-btn-S').classList.toggle('active', s); changed = true; }
-            if (state.web.buttons.A !== a) { state.web.buttons.A = a; document.getElementById('web-btn-A').classList.toggle('active', a); changed = true; }
-            if (state.web.buttons.D !== d) { state.web.buttons.D = d; document.getElementById('web-btn-D').classList.toggle('active', d); changed = true; }
+        const updateWebStick = (cx, cy) => {
+            const rect = webStick.getBoundingClientRect();
+            const max = rect.width / 2;
+            let dx = cx - (rect.left + max);
+            let dy = cy - (rect.top + max);
+            let dist = Math.hypot(dx, dy);
+
+            // Cap the physical thumbstick movement to the edge of the circle
+            if (dist > max) { dx = (dx/dist)*max; dy = (dy/dist)*max; }
+            webThumb.style.transform = `translate(${dx}px, ${dy}px)`;
+
+            // Deadzone: You have to push the stick at least 35% out for it to trigger a key press
+            const deadzone = max * 0.35;
+            
+            const w = dy < -deadzone;
+            const s = dy > deadzone;
+            const a = dx < -deadzone;
+            const d = dx > deadzone;
+
+            let changed = false;
+            if (state.web.buttons.W !== w) { state.web.buttons.W = w; changed = true; }
+            if (state.web.buttons.S !== s) { state.web.buttons.S = s; changed = true; }
+            if (state.web.buttons.A !== a) { state.web.buttons.A = a; changed = true; }
+            if (state.web.buttons.D !== d) { state.web.buttons.D = d; changed = true; }
+
+            // Add a cool neon glow to the stick when a direction is actively engaged
+            if (w || a || s || d) {
+                webThumb.style.boxShadow = '0 0 15px rgba(6, 182, 212, 0.8)';
+            } else {
+                webThumb.style.boxShadow = 'none';
+            }
+
             if (changed) triggerHaptic();
-        }
-        wasdPad.addEventListener('touchstart', e => { e.preventDefault(); wasdTouchId = e.changedTouches[0].identifier; updateWASD(e.changedTouches[0].clientX, e.changedTouches[0].clientY); }, {passive: false});
-        wasdPad.addEventListener('touchmove', e => { e.preventDefault(); for(let t of e.changedTouches) if(t.identifier === wasdTouchId) updateWASD(t.clientX, t.clientY); }, {passive: false});
-        function resetWASD() { wasdTouchId = null; ['W','A','S','D'].forEach(k => { state.web.buttons[k] = false; document.getElementById(`web-btn-${k}`).classList.remove('active'); }); }
-        wasdPad.addEventListener('touchend', e => { e.preventDefault(); resetWASD(); }, {passive: false});
-        wasdPad.addEventListener('touchcancel', e => { e.preventDefault(); resetWASD(); }, {passive: false});
+        };
+
+        const resetWebStick = () => {
+            webThumb.style.transform = 'translate(0,0)';
+            webThumb.style.boxShadow = 'none';
+            state.web.buttons.W = false;
+            state.web.buttons.S = false;
+            state.web.buttons.A = false;
+            state.web.buttons.D = false;
+            webStickId = null;
+        };
+
+        webStick.addEventListener('touchstart', e => { e.preventDefault(); webStickId = e.changedTouches[0].identifier; updateWebStick(e.changedTouches[0].clientX, e.changedTouches[0].clientY); triggerHaptic('click'); }, {passive:false});
+        webStick.addEventListener('touchmove', e => { e.preventDefault(); for(let t of e.changedTouches) if(t.identifier === webStickId) updateWebStick(t.clientX, t.clientY); }, {passive:false});
+        webStick.addEventListener('touchend', e => { e.preventDefault(); resetWebStick(); }, {passive:false});
+        webStick.addEventListener('touchcancel', e => { e.preventDefault(); resetWebStick(); }, {passive:false});
 
         // ================= WEB GAMES: OTHER BUTTONS & MOUSE =================
         document.querySelectorAll('[data-webtn]').forEach(btn => {
@@ -320,11 +346,9 @@
             };
         }
 
-        // PERFECT 60 FPS SYNC LOOP
         setInterval(() => {
             if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(state));
-                // Reset relative mouse after it has been securely transmitted
                 state.web.mouse.dx = 0; 
                 state.web.mouse.dy = 0;
             }
