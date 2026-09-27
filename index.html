@@ -25,13 +25,18 @@
         .pad-btn {
             background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.4));
             box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
-            transition: transform 0.05s ease, box-shadow 0.05s ease;
-        }
-        .pad-btn:active, .pad-btn.active {
-            transform: scale(0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.6);
+            transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.05s ease;
         }
         
-        /* Adjusted ABXY size for better fit */
+        /* Ghost Key Action Visual Effect */
+        .pad-btn:active, .pad-btn.active {
+            transform: scale(0.92); 
+            /* Cyan neon ghost glow */
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.6), inset 0 2px 4px rgba(0,0,0,0.8);
+            background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.3), rgba(0, 0, 0, 0.6));
+            color: #22d3ee; /* Cyan text */
+        }
+        
         .abxy-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: white; position: absolute; }
         
         .trigger-slider { position: relative; overflow: hidden; }
@@ -79,7 +84,6 @@
         <!-- 1. XBOX GAMEPAD TAB -->
         <div id="view-gamepad" class="w-full h-full flex flex-col justify-evenly p-2 relative">
             
-            <!-- Top Controls (Smaller height) -->
             <div class="flex justify-between items-center z-10 shrink-0 px-2">
                 <div class="flex space-x-2">
                     <div id="btn-L2" class="trigger-slider pad-btn px-4 py-1.5 rounded-lg text-[10px] font-bold text-gray-300 border border-white/10 flex flex-col items-center justify-center w-14 h-8"><div id="bg-L2" class="trigger-fill" style="height: 0%;"></div><span class="z-10">L2</span></div>
@@ -95,20 +99,17 @@
                 </div>
             </div>
 
-            <!-- Middle Controls (D-Pad, Telemetry, ABXY) -->
             <div class="flex justify-between items-center px-4 shrink-0 mt-1">
-                <!-- D-PAD (Scaled down to 28x28) -->
                 <div class="relative w-28 h-28 flex items-center justify-center shrink-0">
                     <div class="absolute w-28 h-10 bg-gray-800/90 rounded-xl border border-white/10"></div>
                     <div class="absolute h-28 w-10 bg-gray-800/90 rounded-xl border border-white/10"></div>
-                    <button data-btn="DPAD_UP" class="pad-btn absolute top-0 w-9 h-9 rounded-t-xl flex items-center justify-center z-10"><i data-lucide="chevron-up" class="w-4 h-4 text-gray-300"></i></button>
-                    <button data-btn="DPAD_DOWN" class="pad-btn absolute bottom-0 w-9 h-9 rounded-b-xl flex items-center justify-center z-10"><i data-lucide="chevron-down" class="w-4 h-4 text-gray-300"></i></button>
-                    <button data-btn="DPAD_LEFT" class="pad-btn absolute left-0 w-9 h-9 rounded-l-xl flex items-center justify-center z-10"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-300"></i></button>
-                    <button data-btn="DPAD_RIGHT" class="pad-btn absolute right-0 w-9 h-9 rounded-r-xl flex items-center justify-center z-10"><i data-lucide="chevron-right" class="w-4 h-4 text-gray-300"></i></button>
+                    <button data-btn="DPAD_UP" class="pad-btn absolute top-0 w-9 h-9 rounded-t-xl flex items-center justify-center z-10"><i data-lucide="chevron-up" class="w-4 h-4 text-gray-300 pointer-events-none"></i></button>
+                    <button data-btn="DPAD_DOWN" class="pad-btn absolute bottom-0 w-9 h-9 rounded-b-xl flex items-center justify-center z-10"><i data-lucide="chevron-down" class="w-4 h-4 text-gray-300 pointer-events-none"></i></button>
+                    <button data-btn="DPAD_LEFT" class="pad-btn absolute left-0 w-9 h-9 rounded-l-xl flex items-center justify-center z-10"><i data-lucide="chevron-left" class="w-4 h-4 text-gray-300 pointer-events-none"></i></button>
+                    <button data-btn="DPAD_RIGHT" class="pad-btn absolute right-0 w-9 h-9 rounded-r-xl flex items-center justify-center z-10"><i data-lucide="chevron-right" class="w-4 h-4 text-gray-300 pointer-events-none"></i></button>
                     <div class="absolute w-8 h-8 bg-gray-900 rounded-full z-10"></div>
                 </div>
 
-                <!-- TELEMETRY (Hidden on very small screens to save space) -->
                 <div class="hidden sm:flex flex-col items-center justify-center space-y-1 glass-panel p-2 rounded-xl border border-white/5 w-36">
                     <div class="text-[9px] font-bold tracking-widest text-gray-400">TELEMETRY</div>
                     <div class="w-full space-y-0.5 text-[10px] font-mono">
@@ -117,7 +118,6 @@
                     </div>
                 </div>
 
-                <!-- ABXY (Scaled down to 32x32) -->
                 <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
                     <button data-btn="Y" class="abxy-btn pad-btn top-0 bg-amber-500/80 border border-amber-400/50">Y</button>
                     <button data-btn="X" class="abxy-btn pad-btn left-0 bg-blue-500/80 border border-blue-400/50">X</button>
@@ -126,7 +126,6 @@
                 </div>
             </div>
 
-            <!-- Bottom Controls (ANALOG STICKS - Scaled down) -->
             <div class="flex justify-between items-center px-10 z-10 shrink-0">
                 <div class="flex flex-col items-center">
                     <div id="stick-left-container" class="w-20 h-20 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center">
@@ -144,24 +143,27 @@
         <!-- 2. WEB GAMES TAB -->
         <div id="view-webgames" class="w-full h-full hidden flex-row justify-between items-center px-4 py-2 relative gap-4">
             
-            <!-- WASD PAD -->
-            <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
-                <div class="absolute w-32 h-10 bg-gray-800/90 rounded-xl border border-white/10"></div>
-                <div class="absolute h-32 w-10 bg-gray-800/90 rounded-xl border border-white/10"></div>
-                <button data-webtn="W" class="pad-btn absolute top-0 w-10 h-10 rounded-t-xl flex items-center justify-center z-10 font-black text-lg text-white">W</button>
-                <button data-webtn="S" class="pad-btn absolute bottom-0 w-10 h-10 rounded-b-xl flex items-center justify-center z-10 font-black text-lg text-white">S</button>
-                <button data-webtn="A" class="pad-btn absolute left-0 w-10 h-10 rounded-l-xl flex items-center justify-center z-10 font-black text-lg text-white">A</button>
-                <button data-webtn="D" class="pad-btn absolute right-0 w-10 h-10 rounded-r-xl flex items-center justify-center z-10 font-black text-lg text-white">D</button>
-                <div class="absolute w-8 h-8 bg-gray-900 rounded-full z-10"></div>
+            <!-- WASD PAD (Upgraded with Ghost Key / Slide Action) -->
+            <div id="wasd-pad" class="relative w-32 h-32 flex items-center justify-center shrink-0 touch-none">
+                <div class="absolute w-32 h-10 bg-gray-800/90 rounded-xl border border-white/10 pointer-events-none"></div>
+                <div class="absolute h-32 w-10 bg-gray-800/90 rounded-xl border border-white/10 pointer-events-none"></div>
+                
+                <!-- Notice these are DIVs now, not buttons, allowing the pad to capture continuous touch -->
+                <div id="web-btn-W" class="pad-btn absolute top-0 w-10 h-10 rounded-t-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">W</div>
+                <div id="web-btn-S" class="pad-btn absolute bottom-0 w-10 h-10 rounded-b-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">S</div>
+                <div id="web-btn-A" class="pad-btn absolute left-0 w-10 h-10 rounded-l-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">A</div>
+                <div id="web-btn-D" class="pad-btn absolute right-0 w-10 h-10 rounded-r-xl flex items-center justify-center z-10 font-black text-lg text-white pointer-events-none transition-colors">D</div>
+                
+                <div class="absolute w-8 h-8 bg-gray-900 rounded-full z-10 pointer-events-none"></div>
             </div>
 
-            <!-- MOUSE TRACKPAD (Dynamic Flex-1 keeps it from pushing others out) -->
+            <!-- MOUSE TRACKPAD -->
             <div id="trackpad" class="flex-1 h-full max-h-36 bg-black/40 border border-white/10 rounded-2xl relative flex flex-col items-center justify-center overflow-hidden shadow-inner touch-none">
                 <i data-lucide="mouse-pointer-2" class="w-5 h-5 text-gray-600 mb-1"></i>
                 <span class="text-[9px] font-bold tracking-widest text-gray-500 pointer-events-none">TRACKPAD</span>
             </div>
 
-            <!-- ACTION BUTTONS -->
+            <!-- ACTION BUTTONS (Still normal taps) -->
             <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
                 <button data-webtn="E" class="abxy-btn pad-btn top-0 bg-gray-500/80 text-xs">E</button>
                 <button data-webtn="SHIFT" class="abxy-btn pad-btn left-0 bg-blue-500/80 text-[9px]">SHFT</button>
@@ -255,11 +257,72 @@
             container.addEventListener('touchstart', e => { e.preventDefault(); activeId = e.changedTouches[0].identifier; move(e.changedTouches[0].clientX, e.changedTouches[0].clientY); triggerHaptic(); }, {passive:false});
             container.addEventListener('touchmove', e => { e.preventDefault(); for(let t of e.changedTouches) if(t.identifier===activeId) move(t.clientX, t.clientY); }, {passive:false});
             container.addEventListener('touchend', reset);
+            container.addEventListener('touchcancel', reset);
         }
         setupStick('stick-left-container', 'stick-left-thumb', 'LX', 'LY');
         setupStick('stick-right-container', 'stick-right-thumb', 'RX', 'RY');
 
-        // ================= WEB GAMES =================
+        // ================= WEB GAMES: WASD GHOST / SLIDE ACTION =================
+        const wasdPad = document.getElementById('wasd-pad');
+        let wasdTouchId = null;
+
+        function updateWASD(clientX, clientY) {
+            const rect = wasdPad.getBoundingClientRect();
+            // Calculate distance from center of the WASD pad
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const dx = clientX - cx;
+            const dy = clientY - cy;
+            
+            // Deadzone to prevent accidental triggering when resting in middle
+            const deadzone = 12;
+            
+            const w = dy < -deadzone;
+            const s = dy > deadzone;
+            const a = dx < -deadzone;
+            const d = dx > deadzone;
+
+            let changed = false;
+
+            // Update state and visual ghost glow
+            if (state.web.buttons.W !== w) { state.web.buttons.W = w; document.getElementById('web-btn-W').classList.toggle('active', w); changed = true; }
+            if (state.web.buttons.S !== s) { state.web.buttons.S = s; document.getElementById('web-btn-S').classList.toggle('active', s); changed = true; }
+            if (state.web.buttons.A !== a) { state.web.buttons.A = a; document.getElementById('web-btn-A').classList.toggle('active', a); changed = true; }
+            if (state.web.buttons.D !== d) { state.web.buttons.D = d; document.getElementById('web-btn-D').classList.toggle('active', d); changed = true; }
+
+            if (changed) {
+                triggerHaptic();
+                sendData();
+            }
+        }
+
+        wasdPad.addEventListener('touchstart', e => {
+            e.preventDefault();
+            wasdTouchId = e.changedTouches[0].identifier;
+            updateWASD(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+        }, {passive: false});
+
+        wasdPad.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for(let t of e.changedTouches) {
+                if(t.identifier === wasdTouchId) {
+                    updateWASD(t.clientX, t.clientY);
+                }
+            }
+        }, {passive: false});
+
+        function resetWASD() {
+            wasdTouchId = null;
+            ['W','A','S','D'].forEach(k => {
+                state.web.buttons[k] = false;
+                document.getElementById(`web-btn-${k}`).classList.remove('active');
+            });
+            sendData();
+        }
+        wasdPad.addEventListener('touchend', e => { e.preventDefault(); resetWASD(); }, {passive: false});
+        wasdPad.addEventListener('touchcancel', e => { e.preventDefault(); resetWASD(); }, {passive: false});
+
+        // ================= WEB GAMES: OTHER BUTTONS & MOUSE =================
         document.querySelectorAll('[data-webtn]').forEach(btn => {
             const name = btn.getAttribute('data-webtn');
             btn.addEventListener('touchstart', e => { e.preventDefault(); state.web.buttons[name] = true; btn.classList.add('active'); triggerHaptic(); sendData(); }, {passive:false});
