@@ -27,7 +27,6 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
             transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.05s ease;
         }
-        
         .pad-btn:active, .pad-btn.active {
             transform: scale(0.92); 
             box-shadow: 0 0 15px rgba(6, 182, 212, 0.6), inset 0 2px 4px rgba(0,0,0,0.8);
@@ -38,6 +37,24 @@
         .abxy-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; color: white; position: absolute; }
         .trigger-slider { position: relative; overflow: hidden; }
         .trigger-fill { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(6, 182, 212, 0.4); transition: height 0.05s linear; }
+        
+        /* Custom Styling for Sensitivity Sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            height: 4px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px; width: 14px;
+            border-radius: 50%;
+            background: #22d3ee; /* Cyan-400 */
+            box-shadow: 0 0 8px rgba(34, 211, 238, 0.8);
+            cursor: pointer;
+        }
+
         #orientation-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
         @media (orientation: portrait) { #orientation-overlay { display: flex; } }
     </style>
@@ -129,19 +146,31 @@
         <!-- 2. WEB GAMES TAB -->
         <div id="view-webgames" class="w-full h-full hidden flex-row justify-between items-center px-4 py-2 relative gap-4">
             
-            <!-- WASD JOYSTICK (Replaces old WASD buttons) -->
+            <!-- WASD JOYSTICK with Sensitivity -->
             <div class="flex flex-col items-center shrink-0 w-32">
                 <div id="web-stick-container" class="w-24 h-24 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center touch-none">
                     <div id="web-stick-thumb" class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-cyan-400/50 absolute flex items-center justify-center pointer-events-none transition-transform duration-75">
                         <div class="w-3 h-3 rounded-full bg-cyan-400/80"></div>
                     </div>
                 </div>
-                <span class="text-[10px] font-bold text-gray-400 mt-2 tracking-wider">WASD STICK</span>
+                <div class="flex flex-col items-center mt-2 w-full">
+                    <span class="text-[9px] font-bold text-gray-400 tracking-wider">WASD SENSITIVITY</span>
+                    <!-- Slider from 1 (Low) to 10 (High) -->
+                    <input type="range" id="wasd-sensitivity" min="1" max="10" value="7" class="w-20 mt-1">
+                </div>
             </div>
 
-            <div id="trackpad" class="flex-1 h-full max-h-36 bg-black/40 border border-white/10 rounded-2xl relative flex flex-col items-center justify-center overflow-hidden shadow-inner touch-none">
-                <i data-lucide="mouse-pointer-2" class="w-5 h-5 text-gray-600 mb-1"></i>
-                <span class="text-[9px] font-bold tracking-widest text-gray-500 pointer-events-none">TRACKPAD</span>
+            <!-- MOUSE TRACKPAD with Sensitivity -->
+            <div class="flex flex-col flex-1 h-full max-h-40 shrink-0">
+                <div id="trackpad" class="flex-1 w-full bg-black/40 border border-white/10 rounded-2xl relative flex flex-col items-center justify-center overflow-hidden shadow-inner touch-none">
+                    <i data-lucide="mouse-pointer-2" class="w-5 h-5 text-gray-600 mb-1 pointer-events-none"></i>
+                    <span class="text-[9px] font-bold tracking-widest text-gray-500 pointer-events-none">TRACKPAD</span>
+                </div>
+                <div class="flex justify-center items-center mt-2 w-full">
+                    <span class="text-[9px] font-bold text-gray-400 tracking-wider mr-2">MOUSE SPEED</span>
+                    <!-- Slider from 0.5 (Slow) to 3.5 (Fast) -->
+                    <input type="range" id="mouse-sensitivity" min="0.5" max="3.5" step="0.1" value="1.5" class="w-24">
+                </div>
             </div>
 
             <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
@@ -240,9 +269,10 @@
         setupStick('stick-left-container', 'stick-left-thumb', 'LX', 'LY');
         setupStick('stick-right-container', 'stick-right-thumb', 'RX', 'RY');
 
-        // ================= WEB GAMES: WASD JOYSTICK =================
+        // ================= WEB GAMES: WASD STICK WITH SENSITIVITY =================
         const webStick = document.getElementById('web-stick-container');
         const webThumb = document.getElementById('web-stick-thumb');
+        const sensitivitySlider = document.getElementById('wasd-sensitivity');
         let webStickId = null;
 
         const updateWebStick = (cx, cy) => {
@@ -252,12 +282,16 @@
             let dy = cy - (rect.top + max);
             let dist = Math.hypot(dx, dy);
 
-            // Cap the physical thumbstick movement to the edge of the circle
+            // Move the thumb visual
             if (dist > max) { dx = (dx/dist)*max; dy = (dy/dist)*max; }
             webThumb.style.transform = `translate(${dx}px, ${dy}px)`;
 
-            // Deadzone: You have to push the stick at least 35% out for it to trigger a key press
-            const deadzone = max * 0.35;
+            // CALCULATE DEADZONE BASED ON SENSITIVITY SLIDER (1 to 10)
+            // Value 10 (High Sens) -> Deadzone is only 10% of radius (triggers easily)
+            // Value 1 (Low Sens) -> Deadzone is 90% of radius (triggers only at the edge)
+            const sliderVal = parseFloat(sensitivitySlider.value);
+            const deadzonePercentage = (11 - sliderVal) / 10; 
+            const deadzone = max * deadzonePercentage;
             
             const w = dy < -deadzone;
             const s = dy > deadzone;
@@ -270,7 +304,7 @@
             if (state.web.buttons.A !== a) { state.web.buttons.A = a; changed = true; }
             if (state.web.buttons.D !== d) { state.web.buttons.D = d; changed = true; }
 
-            // Add a cool neon glow to the stick when a direction is actively engaged
+            // Visual Glow if any direction is engaged
             if (w || a || s || d) {
                 webThumb.style.boxShadow = '0 0 15px rgba(6, 182, 212, 0.8)';
             } else {
@@ -283,10 +317,8 @@
         const resetWebStick = () => {
             webThumb.style.transform = 'translate(0,0)';
             webThumb.style.boxShadow = 'none';
-            state.web.buttons.W = false;
-            state.web.buttons.S = false;
-            state.web.buttons.A = false;
-            state.web.buttons.D = false;
+            state.web.buttons.W = false; state.web.buttons.S = false;
+            state.web.buttons.A = false; state.web.buttons.D = false;
             webStickId = null;
         };
 
@@ -295,7 +327,7 @@
         webStick.addEventListener('touchend', e => { e.preventDefault(); resetWebStick(); }, {passive:false});
         webStick.addEventListener('touchcancel', e => { e.preventDefault(); resetWebStick(); }, {passive:false});
 
-        // ================= WEB GAMES: OTHER BUTTONS & MOUSE =================
+        // ================= WEB GAMES: OTHER BUTTONS & TRACKPAD =================
         document.querySelectorAll('[data-webtn]').forEach(btn => {
             const name = btn.getAttribute('data-webtn');
             btn.addEventListener('touchstart', e => { e.preventDefault(); state.web.buttons[name] = true; btn.classList.add('active'); triggerHaptic(); }, {passive:false});
@@ -303,17 +335,21 @@
         });
 
         const trackpad = document.getElementById('trackpad');
+        const mouseSensSlider = document.getElementById('mouse-sensitivity');
         let tpActiveId = null, lastTx = 0, lastTy = 0;
+        
         trackpad.addEventListener('touchstart', e => {
             e.preventDefault(); tpActiveId = e.changedTouches[0].identifier;
             lastTx = e.changedTouches[0].clientX; lastTy = e.changedTouches[0].clientY;
         }, {passive:false});
+        
         trackpad.addEventListener('touchmove', e => {
             e.preventDefault();
             for(let t of e.changedTouches) {
                 if(t.identifier === tpActiveId) {
-                    state.web.mouse.dx += (t.clientX - lastTx) * 1.5; 
-                    state.web.mouse.dy += (t.clientY - lastTy) * 1.5;
+                    const mouseMultiplier = parseFloat(mouseSensSlider.value);
+                    state.web.mouse.dx += (t.clientX - lastTx) * mouseMultiplier; 
+                    state.web.mouse.dy += (t.clientY - lastTy) * mouseMultiplier;
                     lastTx = t.clientX; lastTy = t.clientY;
                 }
             }
