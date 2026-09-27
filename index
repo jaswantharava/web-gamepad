@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Gamepad Console</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js CDN for 3D Arena -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background: #090a0f;
+            color: #f3f4f6;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        .glass-panel {
+            background: rgba(18, 20, 29, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .pad-btn {
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.4));
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
+            transition: transform 0.05s ease, background-color 0.05s ease, box-shadow 0.05s ease;
+        }
+        .pad-btn:active, .pad-btn.active {
+            transform: scale(0.92);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.6);
+        }
+        .abxy-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: white;
+            position: absolute;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen justify-between p-2 select-none">
+
+    <!-- TOP HEADER / NAVIGATION -->
+    <header class="glass-panel rounded-2xl p-2 flex items-center justify-between z-20">
+        <div class="flex items-center space-x-2 px-2">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
+            <span class="font-bold tracking-wider text-sm bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">NEXUS CONSOLE</span>
+        </div>
+
+        <!-- TABS -->
+        <div class="flex space-x-1 bg-black/40 p-1 rounded-xl border border-white/5">
+            <button id="tab-gamepad-btn" onclick="switchTab('gamepad')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                <i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i>
+                <span>Gamepad</span>
+            </button>
+            <button id="tab-arena-btn" onclick="switchTab('arena')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition text-gray-400 hover:text-gray-200">
+                <i data-lucide="box" class="w-3.5 h-3.5"></i>
+                <span>3D Test Arena</span>
+            </button>
+        </div>
+
+        <!-- GYRO TOGGLE -->
+        <div class="flex items-center space-x-2">
+            <button id="gyro-toggle-btn" onclick="toggleGyroPermission()" class="px-2.5 py-1.5 rounded-xl bg-gray-800/80 border border-white/10 text-xs text-gray-300 flex items-center space-x-1 active:scale-95 transition">
+                <i data-lucide="compass" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span id="gyro-btn-text">Enable Gyro</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN VIEW AREA -->
+    <main class="relative flex-1 my-2 overflow-hidden rounded-2xl glass-panel">
+
+        <!-- ==================== TAB 1: GAMEPAD INTERFACE ==================== -->
+        <div id="view-gamepad" class="w-full h-full flex flex-col justify-between p-4 relative">
+            
+            <!-- SHOULDER TRIGGERS & BUMPERS -->
+            <div class="flex justify-between items-center z-10">
+                <div class="flex space-x-2">
+                    <button id="btn-L2" data-btn="L2" class="pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 flex flex-col items-center">
+                        <span>L2</span>
+                        <span class="text-[9px] text-cyan-400 font-mono" id="val-L2">0%</span>
+                    </button>
+                    <button id="btn-L1" data-btn="L1" class="pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 flex items-center justify-center">
+                        L1
+                    </button>
+                </div>
+
+                <!-- CENTER MENU BUTTONS -->
+                <div class="flex space-x-3">
+                    <button id="btn-SELECT" data-btn="SELECT" class="pad-btn px-3 py-1.5 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10">SELECT</button>
+                    <button id="btn-START" data-btn="START" class="pad-btn px-3 py-1.5 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10">START</button>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button id="btn-R1" data-btn="R1" class="pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 flex items-center justify-center">
+                        R1
+                    </button>
+                    <button id="btn-R2" data-btn="R2" class="pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 flex flex-col items-center">
+                        <span>R2</span>
+                        <span class="text-[9px] text-cyan-400 font-mono" id="val-R2">0%</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- MAIN CONTROLLER BODY (D-PAD, TELEMETRY, ABXY) -->
+            <div class="flex-1 flex justify-between items-center px-4 relative my-2">
+                
+                <!-- LEFT SECTION: D-PAD -->
+                <div class="relative w-36 h-36 flex items-center justify-center">
+                    <div class="absolute w-36 h-12 bg-gray-800/90 rounded-xl border border-white/10"></div>
+                    <div class="absolute h-36 w-12 bg-gray-800/90 rounded-xl border border-white/10"></div>
+                    
+                    <button id="btn-DPAD_UP" data-btn="DPAD_UP" class="pad-btn absolute top-0 w-11 h-11 rounded-t-xl flex items-center justify-center z-10">
+                        <i data-lucide="chevron-up" class="w-5 h-5 text-gray-300"></i>
+                    </button>
+                    <button id="btn-DPAD_DOWN" data-btn="DPAD_DOWN" class="pad-btn absolute bottom-0 w-11 h-11 rounded-b-xl flex items-center justify-center z-10">
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-gray-300"></i>
+                    </button>
+                    <button id="btn-DPAD_LEFT" data-btn="DPAD_LEFT" class="pad-btn absolute left-0 w-11 h-11 rounded-l-xl flex items-center justify-center z-10">
+                        <i data-lucide="chevron-left" class="w-5 h-5 text-gray-300"></i>
+                    </button>
+                    <button id="btn-DPAD_RIGHT" data-btn="DPAD_RIGHT" class="pad-btn absolute right-0 w-11 h-11 rounded-r-xl flex items-center justify-center z-10">
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-gray-300"></i>
+                    </button>
+                    <div class="absolute w-10 h-10 bg-gray-900 rounded-full z-10"></div>
+                </div>
+
+                <!-- CENTER TELEMETRY & GYRO MONITOR -->
+                <div class="flex flex-col items-center justify-center space-y-2 glass-panel p-3 rounded-2xl border border-white/5 w-44">
+                    <div class="text-[10px] font-bold tracking-widest text-gray-400">GYRO TELEMETRY</div>
+                    <div class="w-full space-y-1 text-xs font-mono">
+                        <div class="flex justify-between"><span class="text-gray-400">PITCH:</span><span id="telemetry-pitch" class="text-cyan-400">0.0°</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">ROLL:</span><span id="telemetry-roll" class="text-cyan-400">0.0°</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">YAW:</span><span id="telemetry-yaw" class="text-cyan-400">0.0°</span></div>
+                    </div>
+                    <button onclick="recalibrateGyro()" class="w-full py-1 text-[10px] bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/30 hover:bg-cyan-500/30 transition">
+                        Recalibrate Center
+                    </button>
+                </div>
+
+                <!-- RIGHT SECTION: ABXY BUTTONS -->
+                <div class="relative w-40 h-40 flex items-center justify-center">
+                    <button id="btn-Y" data-btn="Y" class="abxy-btn pad-btn top-0 bg-amber-500/80 border border-amber-400/50 shadow-amber-500/20">Y</button>
+                    <button id="btn-X" data-btn="X" class="abxy-btn pad-btn left-0 bg-blue-500/80 border border-blue-400/50 shadow-blue-500/20">X</button>
+                    <button id="btn-B" data-btn="B" class="abxy-btn pad-btn right-0 bg-red-500/80 border border-red-400/50 shadow-red-500/20">B</button>
+                    <button id="btn-A" data-btn="A" class="abxy-btn pad-btn bottom-0 bg-emerald-500/80 border border-emerald-400/50 shadow-emerald-500/20">A</button>
+                </div>
+            </div>
+
+            <!-- DUAL ANALOG STICKS -->
+            <div class="flex justify-between items-center px-12 z-10">
+                <!-- Left Stick Zone -->
+                <div class="flex flex-col items-center">
+                    <div id="stick-left-container" class="w-28 h-28 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center touch-none">
+                        <div id="stick-left-thumb" class="w-14 h-14 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-cyan-400/50 shadow-lg absolute flex items-center justify-center pointer-events-none transition-transform duration-75">
+                            <div class="w-4 h-4 rounded-full bg-cyan-400/80"></div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold text-gray-400 mt-1">LEFT STICK</span>
+                </div>
+
+                <!-- Right Stick Zone -->
+                <div class="flex flex-col items-center">
+                    <div id="stick-right-container" class="w-28 h-28 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center touch-none">
+                        <div id="stick-right-thumb" class="w-14 h-14 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-blue-400/50 shadow-lg absolute flex items-center justify-center pointer-events-none transition-transform duration-75">
+                            <div class="w-4 h-4 rounded-full bg-blue-400/80"></div>
+                        </div>
+                    </div>
+                    <span class="text-[10px] font-bold text-gray-400 mt-1">RIGHT STICK</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ==================== TAB 2: 3D TEST ARENA ==================== -->
+        <div id="view-arena" class="w-full h-full hidden relative">
+            <div id="three-canvas-container" class="w-full h-full"></div>
+            <div class="absolute top-4 left-4 glass-panel p-3 rounded-xl max-w-xs space-y-1 text-xs border border-white/10">
+                <div class="font-bold text-cyan-400 flex items-center space-x-1">
+                    <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                    <span>Interactive 3D Simulation</span>
+                </div>
+                <p class="text-gray-300 text-[11px] leading-relaxed">
+                    Test your controls live in your browser! Tilt your device to steer the model. Drag the analog sticks to move.
+                </p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- FOOTER: WEBSOCKET CONNECTION BAR -->
+    <footer class="glass-panel rounded-2xl p-2 flex items-center justify-between z-20 space-x-3">
+        <div class="flex items-center space-x-2 flex-1">
+            <div id="connection-indicator" class="w-3 h-3 rounded-full bg-red-500"></div>
+            <input id="ws-url-input" type="text" placeholder="ws://YOUR_SERVER_IP:8080" class="bg-black/50 border border-white/10 text-xs text-gray-200 px-3 py-1.5 rounded-xl flex-1 focus:outline-none focus:border-cyan-500 font-mono">
+        </div>
+        <button id="ws-connect-btn" onclick="toggleWebSocketConnection()" class="px-5 py-1.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded-xl font-bold text-xs hover:bg-cyan-500/30 active:scale-95 transition flex items-center space-x-1.5">
+            <i data-lucide="wifi" class="w-3.5 h-3.5"></i>
+            <span id="ws-connect-text">Connect Host</span>
+        </button>
+    </footer>
+
+    <!-- JS SCRIPT LOGIC -->
+    <script>
+        lucide.createIcons();
+
+        const state = {
+            activeTab: 'gamepad',
+            websocket: null,
+            isConnected: false,
+            buttons: {
+                A: false, B: false, X: false, Y: false,
+                L1: false, R1: false, START: false, SELECT: false,
+                DPAD_UP: false, DPAD_DOWN: false, DPAD_LEFT: false, DPAD_RIGHT: false,
+                L3: false, R3: false
+            },
+            triggers: { L2: 0, R2: 0 },
+            sticks: { LX: 0, LY: 0, RX: 0, RY: 0 },
+            gyro: { enabled: false, pitch: 0, roll: 0, yaw: 0, basePitch: 0, baseRoll: 0, baseYaw: 0 }
+        };
+
+        function switchTab(tab) {
+            state.activeTab = tab;
+            ['gamepad', 'arena'].forEach(t => {
+                const el = document.getElementById(`view-${t}`);
+                const btn = document.getElementById(`tab-${t}-btn`);
+                if (t === tab) {
+                    el.classList.remove('hidden');
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition bg-cyan-500/20 text-cyan-400 border border-cyan-500/30';
+                } else {
+                    el.classList.add('hidden');
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 transition text-gray-400 hover:text-gray-200';
+                }
+            });
+
+            if (tab === 'arena' && !window.threeInitialized) {
+                init3DArena();
+            }
+        }
+
+        function triggerHaptic(type = 'click') {
+            if (!('vibrate' in navigator)) return;
+            switch(type) {
+                case 'click': navigator.vibrate(12); break;
+                case 'heavy': navigator.vibrate([20, 30, 20]); break;
+            }
+        }
+
+        document.querySelectorAll('[data-btn]').forEach(btn => {
+            const btnName = btn.getAttribute('data-btn');
+            
+            const handlePress = (e) => {
+                e.preventDefault();
+                if (btnName === 'L2' || btnName === 'R2') {
+                    state.triggers[btnName] = 1.0;
+                    document.getElementById(`val-${btnName}`).innerText = '100%';
+                } else {
+                    state.buttons[btnName] = true;
+                }
+                btn.classList.add('active');
+                triggerHaptic('click');
+                sendTelemetry();
+            };
+
+            const handleRelease = (e) => {
+                e.preventDefault();
+                if (btnName === 'L2' || btnName === 'R2') {
+                    state.triggers[btnName] = 0.0;
+                    document.getElementById(`val-${btnName}`).innerText = '0%';
+                } else {
+                    state.buttons[btnName] = false;
+                }
+                btn.classList.remove('active');
+                sendTelemetry();
+            };
+
+            btn.addEventListener('touchstart', handlePress, { passive: false });
+            btn.addEventListener('touchend', handleRelease, { passive: false });
+            btn.addEventListener('mousedown', handlePress);
+            btn.addEventListener('mouseup', handleRelease);
+        });
+
+        function setupAnalogStick(containerId, thumbId, axisXKey, axisYKey) {
+            const container = document.getElementById(containerId);
+            const thumb = document.getElementById(thumbId);
+            let activeTouchId = null;
+
+            const handleMove = (clientX, clientY) => {
+                const rect = container.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const maxRadius = rect.width / 2;
+
+                let dx = clientX - centerX;
+                let dy = clientY - centerY;
+                let distance = Math.hypot(dx, dy);
+
+                if (distance > maxRadius) {
+                    dx = (dx / distance) * maxRadius;
+                    dy = (dy / distance) * maxRadius;
+                }
+
+                thumb.style.transform = `translate(${dx}px, ${dy}px)`;
+
+                state.sticks[axisXKey] = Number((dx / maxRadius).toFixed(3));
+                state.sticks[axisYKey] = Number((-dy / maxRadius).toFixed(3));
+                sendTelemetry();
+            };
+
+            const resetStick = () => {
+                thumb.style.transform = 'translate(0px, 0px)';
+                state.sticks[axisXKey] = 0;
+                state.sticks[axisYKey] = 0;
+                activeTouchId = null;
+                sendTelemetry();
+            };
+
+            container.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.changedTouches[0];
+                activeTouchId = touch.identifier;
+                handleMove(touch.clientX, touch.clientY);
+                triggerHaptic('click');
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === activeTouchId) {
+                        handleMove(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                        break;
+                    }
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', resetStick, { passive: false });
+            container.addEventListener('touchcancel', resetStick, { passive: false });
+        }
+
+        setupAnalogStick('stick-left-container', 'stick-left-thumb', 'LX', 'LY');
+        setupAnalogStick('stick-right-container', 'stick-right-thumb', 'RX', 'RY');
+
+        function toggleGyroPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            enableGyroListener();
+                        } else {
+                            alert('Gyroscope motion permission was denied.');
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                enableGyroListener();
+            }
+        }
+
+        function enableGyroListener() {
+            window.addEventListener('deviceorientation', handleOrientation);
+            state.gyro.enabled = true;
+            document.getElementById('gyro-btn-text').innerText = 'Gyro Active';
+            document.getElementById('gyro-toggle-btn').classList.add('bg-cyan-500/20', 'border-cyan-500/40', 'text-cyan-400');
+            triggerHaptic('heavy');
+        }
+
+        function handleOrientation(e) {
+            if (!state.gyro.enabled) return;
+            
+            const rawPitch = e.beta || 0;
+            const rawRoll = e.gamma || 0;
+            const rawYaw = e.alpha || 0;
+
+            if (state.gyro.basePitch === 0) {
+                state.gyro.basePitch = rawPitch;
+                state.gyro.baseRoll = rawRoll;
+                state.gyro.baseYaw = rawYaw;
+            }
+
+            state.gyro.pitch = Number((rawPitch - state.gyro.basePitch).toFixed(1));
+            state.gyro.roll = Number((rawRoll - state.gyro.baseRoll).toFixed(1));
+            state.gyro.yaw = Number((rawYaw - state.gyro.baseYaw).toFixed(1));
+
+            document.getElementById('telemetry-pitch').innerText = `${state.gyro.pitch}°`;
+            document.getElementById('telemetry-roll').innerText = `${state.gyro.roll}°`;
+            document.getElementById('telemetry-yaw').innerText = `${state.gyro.yaw}°`;
+
+            sendTelemetry();
+        }
+
+        function recalibrateGyro() {
+            state.gyro.basePitch = 0;
+            triggerHaptic('heavy');
+        }
+
+        function toggleWebSocketConnection() {
+            if (state.isConnected) {
+                state.websocket.close();
+                return;
+            }
+
+            const urlInput = document.getElementById('ws-url-input').value.trim();
+            if (!urlInput) {
+                alert('Please enter a valid WebSocket URL');
+                return;
+            }
+
+            try {
+                state.websocket = new WebSocket(urlInput);
+
+                state.websocket.onopen = () => {
+                    state.isConnected = true;
+                    document.getElementById('connection-indicator').className = 'w-3 h-3 rounded-full bg-emerald-400 animate-pulse';
+                    document.getElementById('ws-connect-text').innerText = 'Disconnect';
+                    triggerHaptic('heavy');
+                };
+
+                state.websocket.onclose = () => {
+                    state.isConnected = false;
+                    document.getElementById('connection-indicator').className = 'w-3 h-3 rounded-full bg-red-500';
+                    document.getElementById('ws-connect-text').innerText = 'Connect Host';
+                };
+
+                state.websocket.onerror = (err) => {
+                    console.error('WebSocket Error:', err);
+                };
+            } catch (err) {
+                alert('Connection Failed: ' + err.message);
+            }
+        }
+
+        function sendTelemetry() {
+            if (!state.isConnected || !state.websocket) return;
+            const payload = JSON.stringify({
+                buttons: state.buttons,
+                triggers: state.triggers,
+                sticks: state.sticks,
+                gyro: state.gyro
+            });
+            state.websocket.send(payload);
+        }
+
+        function init3DArena() {
+            window.threeInitialized = true;
+            const container = document.getElementById('three-canvas-container');
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x090a0f);
+
+            const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 10, 15);
+            camera.lookAt(0, 0, 0);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            const grid = new THREE.GridHelper(40, 40, 0x00f0ff, 0x222233);
+            scene.add(grid);
+
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(10, 20, 10);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0x404040));
+
+            const vehicleGroup = new THREE.Group();
+            const chassis = new THREE.Mesh(
+                new THREE.BoxGeometry(2, 0.8, 3),
+                new THREE.MeshStandardMaterial({ color: 0x00f0ff })
+            );
+            vehicleGroup.add(chassis);
+            scene.add(vehicleGroup);
+
+            function animate() {
+                requestAnimationFrame(animate);
+
+                if (state.gyro.enabled) {
+                    vehicleGroup.rotation.z = -state.gyro.roll * (Math.PI / 180);
+                    vehicleGroup.rotation.x = state.gyro.pitch * (Math.PI / 180);
+                } else {
+                    vehicleGroup.position.x += state.sticks.LX * 0.1;
+                    vehicleGroup.position.z -= state.sticks.LY * 0.1;
+                }
+
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+    </script>
+</body>
+</html>
