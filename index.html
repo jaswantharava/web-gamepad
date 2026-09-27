@@ -8,180 +8,169 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js for 3D Arena -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <style>
-        /* CRITICAL: Prevents pull-to-refresh and scrolling off-screen */
-        html, body {
-            overscroll-behavior: none;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-            background: #090a0f;
-            color: #f3f4f6;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-            margin: 0; padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
+        * { user-select: none; -webkit-user-select: none; touch-action: none; box-sizing: border-box; }
+        body {
+            background: #090a0f; color: #f3f4f6; overflow: hidden; 
+            height: 100dvh; /* dvh fixes mobile browser bars pushing sticks off screen */
+            width: 100vw; margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         }
-
         .glass-panel {
-            background: rgba(18, 20, 29, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(18, 20, 29, 0.75); backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08);
         }
-
-        /* Setup Screen */
-        #setup-screen {
-            position: absolute; inset: 0; z-index: 500;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: radial-gradient(circle at center, #1a1c29 0%, #090a0f 100%);
-        }
-
-        /* Button Styling */
         .pad-btn {
-            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(0, 0, 0, 0.5));
-            box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.2);
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.4));
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.2);
             transition: transform 0.05s ease, box-shadow 0.05s ease;
-            touch-action: none;
         }
         .pad-btn:active, .pad-btn.active {
-            transform: scale(0.92);
-            box-shadow: 0 1px 4px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.6);
+            transform: scale(0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.6);
         }
+        .abxy-btn { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.25rem; color: white; position: absolute; }
+        
+        /* Triggers */
+        .trigger-slider { position: relative; overflow: hidden; }
+        .trigger-fill { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(6, 182, 212, 0.4); transition: height 0.05s linear; }
 
-        .abxy-btn {
-            width: 48px; height: 48px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 900; font-size: 1.1rem; color: white; position: absolute;
-        }
-
-        /* Slider Triggers */
-        .trigger-slider {
-            position: relative; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .trigger-fill {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(6, 182, 212, 0.4); /* Cyan */
-            transition: height 0.05s linear;
-        }
-
-        /* Orientation Warning */
-        #orientation-overlay {
-            display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.98); z-index: 1000;
-            align-items: center; justify-content: center; flex-direction: column; text-align: center;
-        }
+        #orientation-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; align-items: center; justify-content: center; flex-direction: column; text-align: center; }
         @media (orientation: portrait) { #orientation-overlay { display: flex; } }
     </style>
 </head>
-<body>
-
-    <!-- LANDSCAPE LOCK WARNING -->
+<body class="flex flex-col justify-between p-2">
+    
     <div id="orientation-overlay">
-        <i data-lucide="smartphone" class="w-16 h-16 text-cyan-400 mb-4 animate-bounce" style="transform: rotate(-90deg);"></i>
-        <h2 class="text-2xl font-bold text-white">Rotate Device</h2>
-        <p class="text-gray-400 text-sm mt-2">Landscape mode is required to play.</p>
+        <i data-lucide="rotate-ccw" class="w-12 h-12 text-cyan-400 mb-4 animate-bounce"></i>
+        <h2 class="text-xl font-bold text-white">Rotate Device</h2>
+        <p class="text-gray-400 text-sm mt-2">Landscape mode required.</p>
     </div>
 
-    <!-- SETUP SCREEN (IP INPUT) -->
-    <div id="setup-screen">
-        <div class="glass-panel p-8 rounded-2xl flex flex-col items-center max-w-sm w-full mx-4 shadow-2xl shadow-cyan-500/10">
-            <div class="w-12 h-12 rounded-full bg-cyan-500/20 flex items-center justify-center mb-4 border border-cyan-500/30">
-                <i data-lucide="gamepad-2" class="w-6 h-6 text-cyan-400"></i>
-            </div>
-            <h1 class="text-xl font-bold tracking-wider bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent mb-6">NEXUS CONSOLE</h1>
-            
-            <div class="w-full space-y-4">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 tracking-widest mb-1 block">LAPTOP IP ADDRESS</label>
-                    <input id="ws-url-input" type="text" placeholder="192.168.1.X" value="192.168.1." 
-                           class="w-full bg-black/50 border border-white/10 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-cyan-500 font-mono text-center text-lg">
-                </div>
-                <button onclick="connectToServer()" class="w-full py-3 bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded-xl font-bold text-sm hover:bg-cyan-500/30 active:scale-95 transition flex items-center justify-center space-x-2">
-                    <i data-lucide="wifi" class="w-4 h-4"></i>
-                    <span>Connect to Laptop</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN CONTROLLER UI (Hidden until connected) -->
-    <div id="controller-ui" class="hidden absolute inset-0 w-full h-full p-4">
-        
-        <!-- TOP BUMPERS & TRIGGERS -->
-        <div class="absolute top-4 left-4 flex space-x-2 z-20">
-            <div id="btn-L2" class="trigger-slider pad-btn w-20 h-10 rounded-xl text-xs font-bold text-gray-300 border border-white/10">
-                <div id="bg-L2" class="trigger-fill" style="height: 0%;"></div>
-                <span class="z-10">L2 <span id="val-L2" class="text-[9px] text-cyan-400">0%</span></span>
-            </div>
-            <button id="btn-L1" data-btn="L1" class="pad-btn w-16 h-10 rounded-xl text-xs font-bold text-gray-300 border border-white/10">L1</button>
+    <!-- TOP HEADER -->
+    <header class="glass-panel rounded-2xl p-2 flex items-center justify-between z-20 shrink-0">
+        <div class="flex items-center space-x-2 px-2">
+            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
+            <span class="font-bold tracking-wider text-sm bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">NEXUS CONSOLE</span>
         </div>
 
-        <div class="absolute top-4 right-4 flex space-x-2 z-20">
-            <button id="btn-R1" data-btn="R1" class="pad-btn w-16 h-10 rounded-xl text-xs font-bold text-gray-300 border border-white/10">R1</button>
-            <div id="btn-R2" class="trigger-slider pad-btn w-20 h-10 rounded-xl text-xs font-bold text-gray-300 border border-white/10">
-                <div id="bg-R2" class="trigger-fill" style="height: 0%;"></div>
-                <span class="z-10">R2 <span id="val-R2" class="text-[9px] text-cyan-400">0%</span></span>
-            </div>
-        </div>
-
-        <!-- CENTER MENU BUTTONS -->
-        <div class="absolute top-4 left-1/2 -translate-x-1/2 flex space-x-4 z-20">
-            <button id="btn-SELECT" data-btn="SELECT" class="pad-btn px-4 py-2 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10">SELECT</button>
-            <button onclick="toggleGyro()" id="gyro-btn" class="pad-btn px-3 py-2 rounded-lg text-[10px] font-bold text-cyan-400 border border-cyan-500/30 flex items-center space-x-1">
-                <i data-lucide="compass" class="w-3 h-3"></i><span>GYRO</span>
+        <div class="flex space-x-1 bg-black/40 p-1 rounded-xl border border-white/5">
+            <button id="tab-gamepad-btn" onclick="switchTab('gamepad')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition">
+                <i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i><span>Gamepad</span>
             </button>
-            <button id="btn-START" data-btn="START" class="pad-btn px-4 py-2 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10">START</button>
+            <button id="tab-arena-btn" onclick="switchTab('arena')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 text-gray-400 hover:text-gray-200 transition">
+                <i data-lucide="box" class="w-3.5 h-3.5"></i><span>3D Arena</span>
+            </button>
         </div>
 
-        <!-- BOTTOM LEFT (D-PAD + L3 STICK) -->
-        <div class="absolute bottom-6 left-6 flex items-end space-x-8 z-10 w-1/2">
-            
-            <!-- D-PAD -->
-            <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
-                <div class="absolute w-32 h-10 bg-gray-800/90 rounded-xl border border-white/10"></div>
-                <div class="absolute h-32 w-10 bg-gray-800/90 rounded-xl border border-white/10"></div>
-                <button data-btn="DPAD_UP" class="pad-btn absolute top-0 w-10 h-10 rounded-t-xl flex items-center justify-center z-10"><i data-lucide="chevron-up" class="w-5 h-5 text-gray-300"></i></button>
-                <button data-btn="DPAD_DOWN" class="pad-btn absolute bottom-0 w-10 h-10 rounded-b-xl flex items-center justify-center z-10"><i data-lucide="chevron-down" class="w-5 h-5 text-gray-300"></i></button>
-                <button data-btn="DPAD_LEFT" class="pad-btn absolute left-0 w-10 h-10 rounded-l-xl flex items-center justify-center z-10"><i data-lucide="chevron-left" class="w-5 h-5 text-gray-300"></i></button>
-                <button data-btn="DPAD_RIGHT" class="pad-btn absolute right-0 w-10 h-10 rounded-r-xl flex items-center justify-center z-10"><i data-lucide="chevron-right" class="w-5 h-5 text-gray-300"></i></button>
-                <div class="absolute w-8 h-8 bg-gray-900 rounded-full z-10"></div>
-            </div>
+        <button id="gyro-toggle-btn" onclick="toggleGyroPermission()" class="px-2.5 py-1.5 rounded-xl bg-gray-800/80 border border-white/10 text-xs text-gray-300 flex items-center space-x-1 active:scale-95 transition">
+            <i data-lucide="compass" class="w-3.5 h-3.5 text-cyan-400"></i><span id="gyro-btn-text">Enable Gyro</span>
+        </button>
+    </header>
 
-            <!-- LEFT STICK -->
-            <div class="flex flex-col items-center shrink-0 mb-4">
-                <div id="stick-left-container" class="w-24 h-24 rounded-full bg-black/60 border border-white/10 relative flex items-center justify-center">
-                    <div id="stick-left-thumb" class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-cyan-400/50 absolute flex items-center justify-center pointer-events-none transition-transform duration-75 shadow-lg">
-                        <div class="w-3 h-3 rounded-full bg-cyan-400/80"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- BOTTOM RIGHT (ABXY + R3 STICK) -->
-        <div class="absolute bottom-6 right-6 flex items-end justify-end space-x-8 z-10 w-1/2 flex-row-reverse">
-            
-            <!-- ABXY -->
-            <div class="relative w-36 h-36 flex items-center justify-center shrink-0 ml-8">
-                <button data-btn="Y" class="abxy-btn pad-btn top-0 bg-amber-500/80 border border-amber-400/50 shadow-amber-500/20">Y</button>
-                <button data-btn="X" class="abxy-btn pad-btn left-0 bg-blue-500/80 border border-blue-400/50 shadow-blue-500/20">X</button>
-                <button data-btn="B" class="abxy-btn pad-btn right-0 bg-red-500/80 border border-red-400/50 shadow-red-500/20">B</button>
-                <button data-btn="A" class="abxy-btn pad-btn bottom-0 bg-emerald-500/80 border border-emerald-400/50 shadow-emerald-500/20">A</button>
-            </div>
-
-            <!-- RIGHT STICK -->
-            <div class="flex flex-col items-center shrink-0 mb-4">
-                <div id="stick-right-container" class="w-24 h-24 rounded-full bg-black/60 border border-white/10 relative flex items-center justify-center">
-                    <div id="stick-right-thumb" class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-blue-400/50 absolute flex items-center justify-center pointer-events-none transition-transform duration-75 shadow-lg">
-                        <div class="w-3 h-3 rounded-full bg-blue-400/80"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- MAIN VIEW -->
+    <main class="relative flex-1 my-2 overflow-hidden rounded-2xl glass-panel min-h-0">
         
-    </div>
+        <!-- GAMEPAD TAB -->
+        <div id="view-gamepad" class="w-full h-full flex flex-col justify-between p-4 relative">
+            
+            <!-- Top Controls -->
+            <div class="flex justify-between items-center z-10 shrink-0">
+                <div class="flex space-x-2">
+                    <div id="btn-L2" class="trigger-slider pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 flex flex-col items-center justify-center w-16 h-10">
+                        <div id="bg-L2" class="trigger-fill" style="height: 0%;"></div>
+                        <span class="z-10">L2</span>
+                    </div>
+                    <button id="btn-L1" data-btn="L1" class="pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 w-16 h-10">L1</button>
+                </div>
+
+                <div class="flex space-x-3">
+                    <button id="btn-SELECT" data-btn="SELECT" class="pad-btn px-3 py-1.5 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10">SELECT</button>
+                    <button id="btn-START" data-btn="START" class="pad-btn px-3 py-1.5 rounded-lg text-[10px] font-bold text-gray-400 border border-white/10">START</button>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button id="btn-R1" data-btn="R1" class="pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 w-16 h-10">R1</button>
+                    <div id="btn-R2" class="trigger-slider pad-btn px-5 py-2 rounded-xl text-xs font-bold text-gray-300 border border-white/10 flex flex-col items-center justify-center w-16 h-10">
+                        <div id="bg-R2" class="trigger-fill" style="height: 0%;"></div>
+                        <span class="z-10">R2</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle/Bottom Controls -->
+            <div class="flex-1 flex justify-between items-center px-4 relative my-2">
+                <!-- D-PAD -->
+                <div class="relative w-36 h-36 flex items-center justify-center shrink-0">
+                    <div class="absolute w-36 h-12 bg-gray-800/90 rounded-xl border border-white/10"></div>
+                    <div class="absolute h-36 w-12 bg-gray-800/90 rounded-xl border border-white/10"></div>
+                    <button data-btn="DPAD_UP" class="pad-btn absolute top-0 w-11 h-11 rounded-t-xl flex items-center justify-center z-10"><i data-lucide="chevron-up" class="w-5 h-5 text-gray-300"></i></button>
+                    <button data-btn="DPAD_DOWN" class="pad-btn absolute bottom-0 w-11 h-11 rounded-b-xl flex items-center justify-center z-10"><i data-lucide="chevron-down" class="w-5 h-5 text-gray-300"></i></button>
+                    <button data-btn="DPAD_LEFT" class="pad-btn absolute left-0 w-11 h-11 rounded-l-xl flex items-center justify-center z-10"><i data-lucide="chevron-left" class="w-5 h-5 text-gray-300"></i></button>
+                    <button data-btn="DPAD_RIGHT" class="pad-btn absolute right-0 w-11 h-11 rounded-r-xl flex items-center justify-center z-10"><i data-lucide="chevron-right" class="w-5 h-5 text-gray-300"></i></button>
+                    <div class="absolute w-10 h-10 bg-gray-900 rounded-full z-10"></div>
+                </div>
+
+                <!-- TELEMETRY -->
+                <div class="flex flex-col items-center justify-center space-y-2 glass-panel p-3 rounded-2xl border border-white/5 w-44">
+                    <div class="text-[10px] font-bold tracking-widest text-gray-400">GYRO TELEMETRY</div>
+                    <div class="w-full space-y-1 text-xs font-mono">
+                        <div class="flex justify-between"><span class="text-gray-400">PITCH:</span><span id="telemetry-pitch" class="text-cyan-400">0.0°</span></div>
+                        <div class="flex justify-between"><span class="text-gray-400">ROLL:</span><span id="telemetry-roll" class="text-cyan-400">0.0°</span></div>
+                    </div>
+                    <button onclick="recalibrateGyro()" class="w-full py-1 text-[10px] bg-cyan-500/20 text-cyan-300 rounded-lg border border-cyan-500/30 transition">Recalibrate Center</button>
+                </div>
+
+                <!-- ABXY -->
+                <div class="relative w-40 h-40 flex items-center justify-center shrink-0">
+                    <button data-btn="Y" class="abxy-btn pad-btn top-0 bg-amber-500/80 border border-amber-400/50">Y</button>
+                    <button data-btn="X" class="abxy-btn pad-btn left-0 bg-blue-500/80 border border-blue-400/50">X</button>
+                    <button data-btn="B" class="abxy-btn pad-btn right-0 bg-red-500/80 border border-red-400/50">B</button>
+                    <button data-btn="A" class="abxy-btn pad-btn bottom-0 bg-emerald-500/80 border border-emerald-400/50">A</button>
+                </div>
+            </div>
+
+            <!-- ANALOG STICKS -->
+            <div class="flex justify-between items-center px-12 z-10 shrink-0">
+                <div class="flex flex-col items-center">
+                    <div id="stick-left-container" class="w-24 h-24 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center">
+                        <div id="stick-left-thumb" class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-cyan-400/50 absolute flex items-center justify-center pointer-events-none transition-transform duration-75"><div class="w-3 h-3 rounded-full bg-cyan-400/80"></div></div>
+                    </div>
+                    <span class="text-[10px] font-bold text-gray-400 mt-1">L3</span>
+                </div>
+
+                <div class="flex flex-col items-center">
+                    <div id="stick-right-container" class="w-24 h-24 rounded-full bg-black/50 border border-white/10 relative flex items-center justify-center">
+                        <div id="stick-right-thumb" class="w-12 h-12 rounded-full bg-gradient-to-b from-gray-700 to-gray-900 border border-blue-400/50 absolute flex items-center justify-center pointer-events-none transition-transform duration-75"><div class="w-3 h-3 rounded-full bg-blue-400/80"></div></div>
+                    </div>
+                    <span class="text-[10px] font-bold text-gray-400 mt-1">R3</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3D ARENA TAB -->
+        <div id="view-arena" class="w-full h-full hidden relative">
+            <div id="three-canvas-container" class="w-full h-full"></div>
+            <div class="absolute top-4 left-4 glass-panel p-3 rounded-xl max-w-xs space-y-1 text-xs border border-white/10">
+                <div class="font-bold text-cyan-400 flex items-center space-x-1"><i data-lucide="info" class="w-3.5 h-3.5"></i><span>Live Physics Preview</span></div>
+                <p class="text-gray-300 text-[11px]">Test your sticks and gyro here.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER NETWORK -->
+    <footer class="glass-panel rounded-2xl p-2 flex items-center justify-between z-20 space-x-3 shrink-0">
+        <div class="flex items-center space-x-2 flex-1">
+            <div id="connection-indicator" class="w-3 h-3 rounded-full bg-red-500"></div>
+            <!-- User only needs to type IP now, e.g., 192.168.1.5 -->
+            <input id="ws-url-input" type="text" placeholder="Enter IP (e.g. 192.168.1.5)" class="bg-black/50 border border-white/10 text-xs text-gray-200 px-3 py-1.5 rounded-xl flex-1 focus:outline-none focus:border-cyan-500 font-mono">
+        </div>
+        <button onclick="toggleWebSocketConnection()" class="px-5 py-1.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 rounded-xl font-bold text-xs hover:bg-cyan-500/30 transition flex items-center space-x-1.5">
+            <i data-lucide="wifi" class="w-3.5 h-3.5"></i><span id="ws-connect-text">Connect Host</span>
+        </button>
+    </footer>
 
     <script>
         lucide.createIcons();
@@ -193,85 +182,56 @@
             gyro: { enabled: false, pitch: 0, roll: 0, yaw: 0, basePitch: 0, baseRoll: 0 }
         };
 
-        function triggerHaptic(type = 'click') {
-            if (!navigator.vibrate) return;
-            if (type === 'click') navigator.vibrate(10);
-            if (type === 'heavy') navigator.vibrate([20, 30, 20]);
-            if (type === 'slide') navigator.vibrate(5);
-        }
-
-        // --- Connection Logic ---
-        function connectToServer() {
-            const ip = document.getElementById('ws-url-input').value.trim();
-            if(!ip || ip === "192.168.1.") return alert('Please enter your laptop\'s full IP address.');
+        function switchTab(tab) {
+            const gamepadBtn = document.getElementById('tab-gamepad-btn');
+            const arenaBtn = document.getElementById('tab-arena-btn');
             
-            triggerHaptic('heavy');
+            document.getElementById('view-gamepad').classList.toggle('hidden', tab !== 'gamepad');
+            document.getElementById('view-arena').classList.toggle('hidden', tab !== 'arena');
             
-            try {
-                // Ensure proper websocket protocol
-                const wsUrl = ip.startsWith('ws://') ? ip : `ws://${ip}:8080`;
-                state.websocket = new WebSocket(wsUrl);
-                
-                state.websocket.onopen = () => {
-                    state.isConnected = true;
-                    document.getElementById('setup-screen').style.display = 'none';
-                    document.getElementById('controller-ui').classList.remove('hidden');
-                    
-                    // Request fullscreen and orientation lock if supported
-                    try { 
-                        document.documentElement.requestFullscreen();
-                        screen.orientation.lock('landscape'); 
-                    } catch(e) {}
-                };
-                
-                state.websocket.onclose = () => {
-                    alert("Disconnected from Laptop.");
-                    location.reload();
-                };
-                
-                state.websocket.onerror = () => {
-                    alert("Connection failed. Check if Python server is running and IP is correct.");
-                    state.websocket.close();
-                };
-            } catch(e) {
-                alert("Invalid IP Address Format.");
+            if (tab === 'gamepad') {
+                gamepadBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition';
+                arenaBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 text-gray-400 hover:text-gray-200 transition';
+            } else {
+                arenaBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition';
+                gamepadBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 text-gray-400 hover:text-gray-200 transition';
+                if (!window.threeInitialized) init3DArena();
             }
         }
 
-        // --- Button Logic ---
+        function triggerHaptic(type = 'click') {
+            if (!navigator.vibrate) return;
+            if (type === 'click') navigator.vibrate(15);
+            if (type === 'heavy') navigator.vibrate([30, 40, 30]);
+            if (type === 'slide') navigator.vibrate(5);
+        }
+
+        // Digital Buttons
         document.querySelectorAll('[data-btn]').forEach(btn => {
             const name = btn.getAttribute('data-btn');
             const press = (e) => { e.preventDefault(); state.buttons[name] = true; btn.classList.add('active'); triggerHaptic('click'); sendData(); };
             const release = (e) => { e.preventDefault(); state.buttons[name] = false; btn.classList.remove('active'); sendData(); };
-            
             btn.addEventListener('touchstart', press, { passive: false });
             btn.addEventListener('touchend', release, { passive: false });
         });
 
-        // --- Pressure Triggers Logic (Sliding) ---
+        // Analog Triggers (Slide)
         ['L2', 'R2'].forEach(t => {
             const el = document.getElementById(`btn-${t}`);
-            const bg = document.getElementById(`bg-${t}`);
-            const valText = document.getElementById(`val-${t}`);
-
             const update = (clientY, rect) => {
                 let val = (clientY - rect.top) / rect.height;
-                val = 1 - Math.max(0, Math.min(1, val)); // Invert: Bottom is 0%, Top is 100%
-                
+                val = 1 - Math.max(0, Math.min(1, val)); 
                 state.triggers[t] = Number(val.toFixed(2));
-                valText.innerText = `${Math.round(val * 100)}%`;
-                bg.style.height = `${val * 100}%`;
-                
+                document.getElementById(`bg-${t}`).style.height = `${val * 100}%`;
                 if(val > 0.1 && val < 0.9) triggerHaptic('slide');
                 sendData();
             };
-
             el.addEventListener('touchstart', (e) => { e.preventDefault(); el.classList.add('active'); update(e.touches[0].clientY, el.getBoundingClientRect()); }, { passive: false });
             el.addEventListener('touchmove', (e) => { e.preventDefault(); update(e.touches[0].clientY, el.getBoundingClientRect()); }, { passive: false });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('active'); state.triggers[t] = 0; valText.innerText = `0%`; bg.style.height = `0%`; sendData(); });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); el.classList.remove('active'); state.triggers[t] = 0; document.getElementById(`bg-${t}`).style.height = `0%`; sendData(); });
         });
 
-        // --- Analog Sticks Logic ---
+        // Analog Sticks
         function setupStick(containerId, thumbId, axisX, axisY) {
             const container = document.getElementById(containerId);
             const thumb = document.getElementById(thumbId);
@@ -283,83 +243,115 @@
                 let dx = cx - (rect.left + max);
                 let dy = cy - (rect.top + max);
                 let dist = Math.hypot(dx, dy);
-                
                 if (dist > max) { dx = (dx/dist)*max; dy = (dy/dist)*max; }
                 
                 thumb.style.transform = `translate(${dx}px, ${dy}px)`;
                 state.sticks[axisX] = Number((dx / max).toFixed(2));
-                state.sticks[axisY] = Number((-dy / max).toFixed(2)); // Invert Y so up is positive
+                state.sticks[axisY] = Number((-dy / max).toFixed(2)); 
                 sendData();
             };
+            const reset = () => { thumb.style.transform = 'translate(0,0)'; state.sticks[axisX]=0; state.sticks[axisY]=0; activeId=null; sendData(); };
 
-            const reset = () => { 
-                thumb.style.transform = 'translate(0,0)'; 
-                state.sticks[axisX]=0; state.sticks[axisY]=0; 
-                activeId=null; sendData(); 
-            };
-
-            container.addEventListener('touchstart', e => { 
-                e.preventDefault(); 
-                activeId = e.changedTouches[0].identifier; 
-                move(e.changedTouches[0].clientX, e.changedTouches[0].clientY); 
-                triggerHaptic('click'); 
-            }, { passive: false });
-            
+            container.addEventListener('touchstart', e => { e.preventDefault(); activeId = e.changedTouches[0].identifier; move(e.changedTouches[0].clientX, e.changedTouches[0].clientY); triggerHaptic('click'); }, { passive: false });
             container.addEventListener('touchmove', e => {
                 e.preventDefault();
-                for(let t of e.changedTouches) { 
-                    if(t.identifier === activeId) move(t.clientX, t.clientY); 
-                }
+                for(let t of e.changedTouches) { if(t.identifier === activeId) move(t.clientX, t.clientY); }
             }, { passive: false });
-            
             container.addEventListener('touchend', reset);
-            container.addEventListener('touchcancel', reset);
         }
-
         setupStick('stick-left-container', 'stick-left-thumb', 'LX', 'LY');
         setupStick('stick-right-container', 'stick-right-thumb', 'RX', 'RY');
 
-        // --- Gyroscope Logic ---
-        function toggleGyro() {
-            if (!state.gyro.enabled) {
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    DeviceOrientationEvent.requestPermission().then(r => { if(r === 'granted') enableGyro(); }).catch(console.error);
-                } else { enableGyro(); }
-            } else {
-                // Turn off
-                state.gyro.enabled = false;
-                document.getElementById('gyro-btn').classList.remove('bg-cyan-500/20');
-                triggerHaptic('click');
+        // Gyroscope
+        function toggleGyroPermission() {
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(r => { if(r === 'granted') enableGyro(); }).catch(console.error);
+            } else { enableGyro(); }
+        }
+        function enableGyro() {
+            window.addEventListener('deviceorientation', e => {
+                if(!state.gyro.enabled) return;
+                if(state.gyro.basePitch === 0) { state.gyro.basePitch = e.beta || 0; state.gyro.baseRoll = e.gamma || 0; }
+                state.gyro.pitch = Number(((e.beta || 0) - state.gyro.basePitch).toFixed(1));
+                state.gyro.roll = Number(((e.gamma || 0) - state.gyro.baseRoll).toFixed(1));
+                
+                document.getElementById('telemetry-pitch').innerText = `${state.gyro.pitch}°`;
+                document.getElementById('telemetry-roll').innerText = `${state.gyro.roll}°`;
+                sendData();
+            });
+            state.gyro.enabled = true;
+            document.getElementById('gyro-btn-text').innerText = 'Gyro Active';
+            document.getElementById('gyro-toggle-btn').classList.add('bg-cyan-500/20', 'border-cyan-500/40', 'text-cyan-400');
+            triggerHaptic('heavy');
+        }
+        function recalibrateGyro() { state.gyro.basePitch = 0; triggerHaptic('heavy'); }
+
+        // WebSocket
+        function toggleWebSocketConnection() {
+            if (state.isConnected) { state.websocket.close(); return; }
+            
+            let ip = document.getElementById('ws-url-input').value.trim();
+            if(!ip) return alert('Enter the IP shown in your Python terminal (e.g. 192.168.1.5)');
+            
+            // Auto format the IP so the user doesn't have to type ws:// or :8080
+            const url = `ws://${ip}:8080`;
+            
+            state.websocket = new WebSocket(url);
+            state.websocket.onopen = () => {
+                state.isConnected = true; triggerHaptic('heavy');
+                document.getElementById('connection-indicator').className = 'w-3 h-3 rounded-full bg-emerald-400 animate-pulse';
+                document.getElementById('ws-connect-text').innerText = 'Disconnect';
+                try { screen.orientation.lock('landscape'); } catch(e){}
+            };
+            state.websocket.onclose = () => {
+                state.isConnected = false;
+                document.getElementById('connection-indicator').className = 'w-3 h-3 rounded-full bg-red-500';
+                document.getElementById('ws-connect-text').innerText = 'Connect Host';
+            };
+            state.websocket.onerror = () => {
+                alert("Connection failed! Ensure the Python server is running and the IP is correct.");
             }
         }
 
-        function enableGyro() {
-            state.gyro.enabled = true;
-            document.getElementById('gyro-btn').classList.add('bg-cyan-500/20');
-            state.gyro.basePitch = 0; // Reset base on activation
-            triggerHaptic('heavy');
-            
-            window.addEventListener('deviceorientation', e => {
-                if(!state.gyro.enabled) return;
-                if(state.gyro.basePitch === 0) { 
-                    state.gyro.basePitch = e.beta || 0; 
-                    state.gyro.baseRoll = e.gamma || 0; 
-                }
-                state.gyro.pitch = Number(((e.beta || 0) - state.gyro.basePitch).toFixed(1));
-                state.gyro.roll = Number(((e.gamma || 0) - state.gyro.baseRoll).toFixed(1));
-                sendData();
-            });
-        }
-
-        // --- Network Loop ---
         let lastSend = 0;
         function sendData() {
             if (!state.isConnected) return;
             const now = Date.now();
-            if (now - lastSend > 16) { // Throttled to ~60fps
+            if (now - lastSend > 16) { 
                 state.websocket.send(JSON.stringify(state));
                 lastSend = now;
             }
+        }
+
+        // 3D Arena
+        function init3DArena() {
+            window.threeInitialized = true;
+            const container = document.getElementById('three-canvas-container');
+            const scene = new THREE.Scene(); scene.background = new THREE.Color(0x090a0f);
+            const camera = new THREE.PerspectiveCamera(60, container.clientWidth/container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 10, 15); camera.lookAt(0,0,0);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+            
+            scene.add(new THREE.GridHelper(40, 40, 0x00f0ff, 0x222233));
+            const light = new THREE.DirectionalLight(0xffffff, 1); light.position.set(10, 20, 10); scene.add(light);
+            
+            const car = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 3), new THREE.MeshStandardMaterial({ color: 0x00f0ff }));
+            scene.add(car);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                if (state.gyro.enabled) {
+                    car.rotation.z = -state.gyro.roll * (Math.PI / 180);
+                    car.rotation.x = state.gyro.pitch * (Math.PI / 180);
+                } else {
+                    car.position.x += state.sticks.LX * 0.2;
+                    car.position.z -= state.sticks.LY * 0.2;
+                }
+                renderer.render(scene, camera);
+            }
+            animate();
         }
     </script>
 </body>
